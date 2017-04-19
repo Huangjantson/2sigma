@@ -367,7 +367,8 @@ def temporalManagerPerf(train_df,test_df,update_df =None):
     
     for f in new_features:
         if f not in update_df.columns: 
-             update_df[f] = np.nan    
+             update_df[f] = np.nan  
+    update_df.update(update)
 
 #the old one only filtering the passed
 def temporalManagerPerf_old(train_df,test_df,update_df =None):
