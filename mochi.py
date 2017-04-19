@@ -254,7 +254,6 @@ def featureMapping(train_df,test_df,feature_list):
 
 #new function for clustering
 def getCluster(train_df,test_df,k):
-    k=10
     cluster = KMeans(k,random_state = 2333)
     cluster.fit(train_df[['latitude', 'longitude']].dropna())
     train_df['cluster_id_'+str(k)]=cluster.predict(train_df[['latitude', 'longitude']])
