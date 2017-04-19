@@ -273,7 +273,7 @@ def processMap(df):
     return 
        
 #try performance instead of high&medium
-def temporalManagerPerf(train_df,test_df,update_df =None,filling=True):
+def temporalManagerPerf(train_df,test_df,update_df =None,filling=None):
     temp=pd.concat([train_df,pd.get_dummies(train_df.interest_level)], axis = 1)
     tempTrain = temp[['manager_id','dayofyear','high','low','medium']].set_index('manager_id')
     tempTest = test_df[['manager_id','dayofyear']]
@@ -326,7 +326,7 @@ def temporalManagerPerf(train_df,test_df,update_df =None,filling=True):
     #filling with manager_id_perf
     if filling:
         for f in new_features:
-            update_df.loc[np.isnan(update_df[f]),f] = update_df['manager_id_perf']
+            update_df.loc[np.isnan(update_df[f]),f] = update_df[filling]
     
     #future performances
         #historical_performances
@@ -377,7 +377,7 @@ def temporalManagerPerf(train_df,test_df,update_df =None,filling=True):
     #filling with manager_id_perf
     if filling:
         for f in new_features:
-            update_df.loc[np.isnan(update_df[f]),f] = update_df['manager_id_perf']
+            update_df.loc[np.isnan(update_df[f]),f] = update_df[filling]
 
 #the old one only filtering the passed
 def temporalManagerPerf_old(train_df,test_df,update_df =None):
