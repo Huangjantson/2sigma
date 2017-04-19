@@ -352,7 +352,7 @@ def temporalManagerPerf(train_df,test_df,update_df =None):
     performance_30['total'] = performance_30['high']+performance_30['low']+performance_30['medium']
     performance_30['m30perf_f'] = (2*performance_30['high']+performance_30['medium'])*1.0/performance_30['total']
 
-    performance_d = tempJoin[tempJoin['dayofyear_toSum'] == tempJoin['dayofyear']<31]
+    performance_d = tempJoin[tempJoin['dayofyear_toSum'] == tempJoin['dayofyear']]
     performance_d = performance_d.groupby(performance_d.index).sum()[['high','low','medium']]
     performance_d['total'] = performance_d['high']+performance_d['low']+performance_d['medium']
     performance_d['mperf_day'] = (2*performance_d['high']+performance_d['medium'])*1.0/performance_d['total']
