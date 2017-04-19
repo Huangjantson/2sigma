@@ -273,7 +273,7 @@ def processMap(df):
     return 
        
 #try performance instead of high&medium
-def temporalManagerPerf(train_df,test_df,update_df =None):
+def temporalManagerPerf(train_df,test_df,update_df =None,filling=True):
     temp=pd.concat([train_df,pd.get_dummies(train_df.interest_level)], axis = 1)
     tempTrain = temp[['manager_id','dayofyear','high','low','medium']].set_index('manager_id')
     tempTest = test_df[['manager_id','dayofyear']]
@@ -287,7 +287,6 @@ def temporalManagerPerf(train_df,test_df,update_df =None):
     performance_3 = performance_3.groupby(performance_3.index).sum()[['high','low','medium']]
     performance_3['total'] = performance_3['high']+performance_3['low']+performance_3['medium']
     performance_3['m3perf'] = (2*performance_3['high']+performance_3['medium'])*1.0/performance_3['total']
-
     
     #performance_7 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<8]
     performance_7 = tempJoin[(tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<8) & \
@@ -323,6 +322,11 @@ def temporalManagerPerf(train_df,test_df,update_df =None):
              update_df[f] = np.nan
     
     update_df.update(update)
+    
+    #filling with manager_id_perf
+    if filling:
+        for f in new_features:
+            update_df.loc[np.isnan(update_df[f]),f] = update_df['manager_id_perf']
     
     #future performances
         #historical_performances
@@ -369,6 +373,11 @@ def temporalManagerPerf(train_df,test_df,update_df =None):
         if f not in update_df.columns: 
              update_df[f] = np.nan  
     update_df.update(update)
+    
+    #filling with manager_id_perf
+    if filling:
+        for f in new_features:
+            update_df.loc[np.isnan(update_df[f]),f] = update_df['manager_id_perf']
 
 #the old one only filtering the passed
 def temporalManagerPerf_old(train_df,test_df,update_df =None):
