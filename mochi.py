@@ -223,7 +223,7 @@ def hcc_scoring(train_df,test_df,feature,labelValue,randomize=0.01,k=5,f=1,g=1,u
     if randomize : update_value *= np.random.uniform(1 - randomize, 1 + randomize, len(test_df))
         
     #adding some noise to the new 
-    print 'New feature added:'+new_feature
+    #print 'New feature added:'+new_feature
 
     if update_df is None:
         update_df = test_df
