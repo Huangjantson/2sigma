@@ -400,7 +400,7 @@ def categorical_statistics(train_df,test_df,cf,nf,\
     train_df.update(updateTrain)
     
 #without leakage, size for train instead of both 
-def c(train_df,test_df,cf):
+def categorical_size(train_df,test_df,cf):
     values =train_df.groupby(cf)['interest_level'].agg({'size':'size'})
     values = values.add_prefix(cf+'_')
     new_feature = list(values.columns)
