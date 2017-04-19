@@ -150,13 +150,25 @@ def singleValueConvert(df1,df2,column,minimum_size=1):
     return df1, df2
 
 #add ranking for this function
-def performance_eval(train_df,test_df,feature,k,smoothing=True,g=1,f=1,update_df =None,random = None):
+def performance_eval(train_df,test_df,feature,smoothing=True,k=5,g=1,f=1,
+                     update_df =None,random = None):
+    
     temp=pd.concat([train_df[feature],pd.get_dummies(train_df.interest_level)], axis = 1)\
          .groupby(feature).mean()
-     
+    
     new_feature = feature+'_perf'
     new_rank = feature+'_rank'
     new_nrank = feature+'_nrank'
+    
+    if smoothing:
+        new_feature +='_s'
+        new_rank +='_s'
+        new_nrank +='_s'
+        
+    if random:
+        new_feature +='_r'
+        new_rank +='_r'
+        new_nrank +='_r'
     
     temp.columns = ['tempHigh','tempLow', 'tempMed']
     
@@ -185,6 +197,41 @@ def performance_eval(train_df,test_df,feature,k,smoothing=True,g=1,f=1,update_df
     if new_nrank not in update_df.columns: update_df[new_nrank] = np.nan
 
     update_df.update(value)
+    
+    
+#hcc encoding based on the targets
+def hcc_scoring(train_df,test_df,feature,labelValue,randomize=0.01,k=5,f=1,g=1,update_df =None):    
+    #input is the train dataframe with its labels mapped to dummies
+    #such as:
+    #tempTrain = train_df.join(pd.get_dummies(train_df[u'interest_level']).astype(int))
+    
+    new_feature = '_'.join(['hcc',feature,labelValue])
+    
+    #take the mean  for the feature on the given featureValue which is mapped to dummies
+    prob = train_df[labelValue].mean()
+    
+    #take the mean and count for each feature value
+    grouped = train_df.groupby(feature)[labelValue].agg({'count':'size','mean':'mean'})
+    
+    #perform the transform for lambda and the final score
+    grouped["lambda"] = 1 / (g + np.exp((k - grouped["count"]) / f))
+    grouped[new_feature] = grouped['lambda']*grouped['mean']+(1-grouped['lambda'])*prob
+    
+    #adding to the test_df
+    update_value  = test_df[[feature]].join(grouped,on = feature,how='left')[new_feature].fillna(prob)
+    
+    if randomize : update_value *= np.random.uniform(1 - randomize, 1 + randomize, len(test_df))
+        
+    #adding some noise to the new 
+    print 'New feature added:'+new_feature
+
+    if update_df is None:
+        update_df = test_df
+    if new_feature not in update_df.columns: 
+        update_df[new_feature] = np.nan
+        
+    update_df.update(update_value)
+    return    
     
 #functions for features
 def featureList(train_df,test_df,limit = 0.001):
@@ -335,6 +382,7 @@ def manager_lon_lat(train_df,test_df):
     #manager mean distance
     std_value['m_m_distance'] = map(lambda x,y:np.sqrt(x**2+y**2).round(4),\
                                     std_value['latitude'],std_value['longitude'])
+                                    
     
     updateMTest = test_df[['manager_id']].join(mean_value, on = 'manager_id', how="left")[['mlat','mlon']].fillna(-1)
     updateDTest = test_df[['manager_id']].join(std_value, on='manager_id', how="left")['m_m_distance'].fillna(-1)
@@ -352,3 +400,11 @@ def manager_lon_lat(train_df,test_df):
     
     train_df.update(updateDTrain)
     train_df.update(updateMTrain)
+    
+    train_df['m_c_distance'] = map(lambda x,y,i,j: np.sqrt((x-i)**2+(y-j)**2),\
+                train_df['latitude'],train_df['longitude'],\
+                train_df['mlat'],train_df['mlon'])
+    test_df['m_c_distance'] = map(lambda x,y,i,j: np.sqrt((x-i)**2+(y-j)**2),\
+                test_df['latitude'],test_df['longitude'],\
+                test_df['mlat'],test_df['mlon'])
+            
