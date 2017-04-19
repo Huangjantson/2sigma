@@ -203,15 +203,15 @@ def performance_eval(train_df,test_df,feature,smoothing=True,k=5,g=1,f=1,
 def hcc_scoring(train_df,test_df,feature,labelValue,randomize=0.01,k=5,f=1,g=1,update_df =None):    
     #input is the train dataframe with its labels mapped to dummies
     #such as:
-    #tempTrain = train_df.join(pd.get_dummies(train_df[u'interest_level']).astype(int))
+    tempTrain = train_df.join(pd.get_dummies(train_df[u'interest_level']).astype(int))
     
     new_feature = '_'.join(['hcc',feature,labelValue])
     
     #take the mean  for the feature on the given featureValue which is mapped to dummies
-    prob = train_df[labelValue].mean()
+    prob = tempTrain[labelValue].mean()
     
     #take the mean and count for each feature value
-    grouped = train_df.groupby(feature)[labelValue].agg({'count':'size','mean':'mean'})
+    grouped = tempTrain.groupby(feature)[labelValue].agg({'count':'size','mean':'mean'})
     
     #perform the transform for lambda and the final score
     grouped["lambda"] = 1 / (g + np.exp((k - grouped["count"]) / f))
