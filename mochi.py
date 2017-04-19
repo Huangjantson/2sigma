@@ -254,14 +254,13 @@ def featureMapping(train_df,test_df,feature_list):
 
 #new function for clustering
 def getCluster(train_df,test_df,k):
+    k=10
     cluster = KMeans(k,random_state = 2333)
     cluster.fit(train_df[['latitude', 'longitude']].dropna())
-    train_df['cluster_id_'+str(k)]=map(lambda x,y: cluster.predict(np.array([x,y]).reshape(1,-1))[0] \
-                           if ~(np.isnan(x)|np.isnan(y)) else -1,\
-                           train_df['latitude'],train_df['longitude'])
-    test_df['cluster_id_'+str(k)]=map(lambda x,y: cluster.predict(np.array([x,y]).reshape(1,-1))[0] \
-                           if ~(np.isnan(x)|np.isnan(y)) else -1,\
-                           test_df['latitude'],test_df['longitude'])
+    train_df['cluster_id_'+str(k)]=cluster.predict(train_df[['latitude', 'longitude']])
+    test_df['cluster_id_'+str(k)]=cluster.predict(test_df[['latitude', 'longitude']])
+    train_df['cluster_id_'+str(k)+'_d']=np.amin(cluster.transform(train_df[['latitude', 'longitude']]),axis=1)
+    test_df['cluster_id_'+str(k)+'_d']=np.amin(cluster.transform(test_df[['latitude', 'longitude']]),axis=1)
     
 #setting the outliers to be nan. to be test
 def processMap(df):
@@ -354,17 +353,66 @@ def temporalManagerPerf(train_df,test_df,update_df =None):
     performance_30['total'] = performance_30['high']+performance_30['low']+performance_30['medium']
     performance_30['m30perf_f'] = (2*performance_30['high']+performance_30['medium'])*1.0/performance_30['total']
 
+    performance_d = tempJoin[tempJoin['dayofyear_toSum'] == tempJoin['dayofyear']<31]
+    performance_d = performance_d.groupby(performance_d.index).sum()[['high','low','medium']]
+    performance_d['total'] = performance_d['high']+performance_d['low']+performance_d['medium']
+    performance_d['mperf_day'] = (2*performance_d['high']+performance_d['medium'])*1.0/performance_d['total']
+
     update = pd.concat([performance_3[['m3perf_f']],performance_7[['m7perf_f']],\
-                        performance_14[['m14perf_f']],performance_30[['m30perf_f']]],axis=1).fillna(-1)
+                        performance_14[['m14perf_f']],performance_30[['m30perf_f']],\
+                        performance_d[['mperf_day']]],axis=1).fillna(-1)
 
     if update_df is None: update_df = test_df
     
-    new_features = ['m3perf_f','m7perf_f','m14perf_f','m30perf_f']
+    new_features = ['m3perf_f','m7perf_f','m14perf_f','m30perf_f','mperf_day']
     
     for f in new_features:
         if f not in update_df.columns: 
              update_df[f] = np.nan    
+
+#the old one only filtering the passed
+def temporalManagerPerf_old(train_df,test_df,update_df =None):
+    temp=pd.concat([train_df,pd.get_dummies(train_df.interest_level)], axis = 1)
+    tempTrain = temp[['manager_id','dayofyear','high','low','medium']].set_index('manager_id')
+    tempTest = test_df[['manager_id','dayofyear']]
+    tempJoin = tempTest.join(tempTrain,on='manager_id',how='left', rsuffix='_toSum')
     
+    #3 day performance
+    performance_3 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<4]
+    performance_3 = performance_3.groupby(performance_3.index).sum()[['high','low','medium']]
+    performance_3['total'] = performance_3['high']+performance_3['low']+performance_3['medium']
+    performance_3['m3perf'] = (2*performance_3['high']+performance_3['medium'])*1.0/performance_3['total']
+
+    
+    performance_7 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<8]
+    performance_7 = performance_7.groupby(performance_7.index).sum()[['high','low','medium']]
+    performance_7['total'] = performance_7['high']+performance_7['low']+performance_7['medium']
+    performance_7['m7perf'] = (2*performance_7['high']+performance_7['medium'])*1.0/performance_7['total']
+    
+    performance_14 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<15]
+    performance_14 = performance_14.groupby(performance_14.index).sum()[['high','low','medium']]
+    performance_14['total'] = performance_14['high']+performance_14['low']+performance_14['medium']
+    performance_14['m14perf'] = (2*performance_14['high']+performance_14['medium'])*1.0/performance_14['total']
+
+    
+    performance_30 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<31]
+    performance_30 = performance_30.groupby(performance_30.index).sum()[['high','low','medium']]
+    performance_30['total'] = performance_30['high']+performance_30['low']+performance_30['medium']
+    performance_30['m30perf'] = (2*performance_30['high']+performance_30['medium'])*1.0/performance_30['total']
+
+    update = pd.concat([performance_3[['m3perf']],performance_7[['m7perf']],\
+                        performance_14[['m14perf']],performance_30[['m30perf']]],axis=1).fillna(-1)
+
+    if update_df is None: update_df = test_df
+    
+    new_features = ['m3perf','m7perf','m14perf','m30perf']
+    
+    for f in new_features:
+        if f not in update_df.columns: 
+             update_df[f] = np.nan
+    
+    update_df.update(update)
+
 #another verision for statistics including some leakage
 def categorical_statistics(train_df,test_df,cf,nf,\
                            get_median=True,get_min = True,get_max = True,\
