@@ -427,14 +427,112 @@ def temporalManagerPerf_old(train_df,test_df,update_df =None):
     
     update_df.update(update)
 
+#try performance instead of high&medium
+def temporalManagerPerf_f(train_df,test_df,update_df =None,filling=None):
+    temp=pd.concat([train_df,pd.get_dummies(train_df.interest_level)], axis = 1)
+    tempTrain = temp[['manager_id','dayofyear','high','low','medium']].set_index('manager_id')
+    tempTest = test_df[['manager_id','dayofyear']]
+    tempJoin = tempTest.join(tempTrain,on='manager_id',how='left', rsuffix='_toSum')
+    
+    #historical_performances
+    #3 day performance
+    #performance_3 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<4]
+    performance_3 = tempJoin[(tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<4)]
+    performance_3 = performance_3.groupby(performance_3.index).sum()[['high','low','medium']]
+    performance_3['m3total'] = performance_3['high']+performance_3['low']+performance_3['medium']
+    performance_3['m3perf'] = (2*performance_3['high']+performance_3['medium'])*1.0/performance_3['m3total']
+    
+    #performance_7 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<8]
+    performance_7 = tempJoin[(tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<8)]
+    performance_7 = performance_7.groupby(performance_7.index).sum()[['high','low','medium']]
+    performance_7['m7total'] = performance_7['high']+performance_7['low']+performance_7['medium']
+    performance_7['m7perf'] = (2*performance_7['high']+performance_7['medium'])*1.0/performance_7['m7total']
+    
+    #performance_14 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<15]
+    performance_14 = tempJoin[(tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<15)]
+    performance_14 = performance_14.groupby(performance_14.index).sum()[['high','low','medium']]
+    performance_14['m14total'] = performance_14['high']+performance_14['low']+performance_14['medium']
+    performance_14['m14perf'] = (2*performance_14['high']+performance_14['medium'])*1.0/performance_14['m14total']
+
+    
+    #performance_30 = tempJoin[tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<31]
+    performance_30 = tempJoin[(tempJoin['dayofyear'] - tempJoin['dayofyear_toSum']<31)]
+    performance_30 = performance_30.groupby(performance_30.index).sum()[['high','low','medium']]
+    performance_30['m30total'] = performance_30['high']+performance_30['low']+performance_30['medium']
+    performance_30['m30perf'] = (2*performance_30['high']+performance_30['medium'])*1.0/performance_30['m30total']
+
+    update = pd.concat([performance_3[['m3perf','m3total']],performance_7[['m7perf','m7total']],\
+                        performance_14[['m14perf','m14total']],performance_30[['m30perf','m30total']]],axis=1)
+
+    if update_df is None: update_df = test_df
+    
+    new_features = ['m3perf','m7perf','m14perf','m30perf','m3total','m7total','m14total','m30total']
+    
+    for f in new_features:
+        if f not in update_df.columns: 
+             update_df[f] = np.nan
+    
+    update_df.update(update)
+    
+    #filling with manager_id_perf
+    if filling:
+        for f in ['m3perf','m7perf','m14perf','m30perf']:
+            update_df.loc[np.isnan(update_df[f]),f] = update_df[filling]
+    for f in ['m3total','m7total','m14total','m30total']:
+        update_df.loc[np.isnan(update_df[f]),f] = 0
+        
+    #future performances
+    performance_3 = tempJoin[(tempJoin['dayofyear_toSum'] - tempJoin['dayofyear']<4)]
+    performance_3 = performance_3.groupby(performance_3.index).sum()[['high','low','medium']]
+    performance_3['m3total_f'] = performance_3['high']+performance_3['low']+performance_3['medium']
+    performance_3['m3perf_f'] = (2*performance_3['high']+performance_3['medium'])*1.0/performance_3['m3total_f']
+
+    
+    performance_7 = tempJoin[(tempJoin['dayofyear_toSum'] - tempJoin['dayofyear']<8)]
+    performance_7 = performance_7.groupby(performance_7.index).sum()[['high','low','medium']]
+    performance_7['m7total_f'] = performance_7['high']+performance_7['low']+performance_7['medium']
+    performance_7['m7perf_f'] = (2*performance_7['high']+performance_7['medium'])*1.0/performance_7['m7total_f']
+    
+    performance_14 = tempJoin[(tempJoin['dayofyear_toSum'] - tempJoin['dayofyear']<14)]
+    performance_14 = performance_14.groupby(performance_14.index).sum()[['high','low','medium']]
+    performance_14['m14total_f'] = performance_14['high']+performance_14['low']+performance_14['medium']
+    performance_14['m14perf_f'] = (2*performance_14['high']+performance_14['medium'])*1.0/performance_14['m14total_f']
+
+    
+    performance_30 = tempJoin[(tempJoin['dayofyear_toSum'] - tempJoin['dayofyear']<31)]
+    performance_30 = performance_30.groupby(performance_30.index).sum()[['high','low','medium']]
+    performance_30['m30total_f'] = performance_30['high']+performance_30['low']+performance_30['medium']
+    performance_30['m30perf_f'] = (2*performance_30['high']+performance_30['medium'])*1.0/performance_30['m30total_f']
+
+
+    update = pd.concat([performance_3[['m3perf_f','m3total_f']],performance_7[['m7perf_f','m7total_f']],\
+                        performance_14[['m14perf_f','m14total_f']],performance_30[['m30perf_f','m30total_f']],\
+                        ],axis=1)
+
+    if update_df is None: update_df = test_df
+    
+    new_features = ['m3perf_f','m7perf_f','m14perf_f','m30perf_f',\
+                    'm3total_f','m7total_f','m14total_f','m30total_f']
+    
+    for f in new_features:
+        if f not in update_df.columns: 
+             update_df[f] = np.nan  
+                
+    update_df.update(update)
+    
+    #filling with manager_id_perf
+    if filling:
+        for f in ['m3perf_f','m7perf_f','m14perf_f','m30perf_f']:
+            update_df.loc[np.isnan(update_df[f]),f] = update_df[filling]
+    for f in ['m3total_f','m7total_f','m14total_f','m30total_f']:
+        update_df.loc[np.isnan(update_df[f]),f] = 0
+
 #another verision for statistics including some leakage
 def categorical_statistics(train_df,test_df,cf,nf,\
                            get_median=True,get_min = True,get_max = True,\
-                           get_normalized_in_group = True,mini_size = 20):
+                           get_size = False,get_std=False,mini_size = 20):
     statistics ={}
     statistics['mean']='mean'
-    statistics['std']='std'
-    statistics['size']='size'
 
     if get_max:
         statistics['max']='max'
@@ -442,6 +540,11 @@ def categorical_statistics(train_df,test_df,cf,nf,\
         statistics['min']='min'
     if get_median:
         statistics['median']='median'
+    if get_std:
+        statistics['std']='std'
+    if get_size:
+        statistics['size']='size'
+
         
     values = pd.concat([train_df,test_df]).groupby(cf)[nf].agg(statistics)
     values = values.add_prefix(cf+'_'+nf+'_')
@@ -477,7 +580,26 @@ def categorical_size(train_df,test_df,cf):
     #update the statistics excluding the normalized value
     test_df.update(updateTest)
     train_df.update(updateTrain)
+
+def rank_on_categorical(train_df,test_df,cf,nf,mini_size=20,random=None):
+    base = train_df.groupby(cf)[nf].agg({'rank':'rank','size':'size'})
+    base['nrank'] = base['rank']/base['size']
     
+    if mini_size:
+        base.ix[base['size']<mini_size,:] = -1
+    
+    updateTrain = train_df[[cf]].join(base, on = cf, how="left").fillna(-1)
+    updateTest = test_df[[cf]].join(base,on=cf,how = 'left').fillna(-1)
+
+    n_feature = cf+'_'+nf+'_nrank'
+    r_feature = cf+'_'+nf+'_rank'
+    
+    train_df[n_feature] =  updateTrain['rank']
+    train_df[r_feature] =  updateTrain['nrank']
+    
+    test_df[n_feature] =  updateTest['rank']
+    test_df[r_feature] =  updateTest['nrank']
+
 #another version for man lat lon including some data leakage
 def manager_lon_lat(train_df,test_df):
     
