@@ -204,6 +204,9 @@ features.extend(['manager_id_size','house_type_size'])
 features=list(set(features))
 
 processMap(train_df)
+processMap(test_df)
+train_df = train_df.fillna(-1)
+test_df=test_df.fillna(-1)
 getCluster(train_df,test_df,30)
 getCluster(train_df,test_df,10)
 
@@ -252,12 +255,17 @@ train_y = np.array(train_df['interest_level'].apply(lambda x: target_num_map[x])
 KF=StratifiedKFold(train_y,5,shuffle=True,random_state = 2333)
 
 train_df = train_df.fillna(-1)
-#test_df = test_df.fillna(-1)
+test_df = test_df.fillna(-1)
 
-store = '/home/raku/kaggleData/2sigma/'
+store = '/home/raku/kaggleData/2sigma/xgb142/'
 
 train_df.to_json(store+'xgb1.42-train.json')
 test_df.to_json(store+'xgb1.42-test.json')
+
+pickl_file = store+'xgb142features.pickle'
+fileObject = open(pickl_file,'wb') 
+pickle.dump(features,fileObject)   
+fileObject.close()
 
 # In[17]:
 
@@ -356,7 +364,7 @@ for dev_index, val_index in KF:
 
 # In[18]:
 
-print 'The mean of the cv_scores (64 turns after best is:'
+print 'The mean of the cv_scores is:'
 print np.mean(cv_scores)
 
 cvResult = CVstatistics(cv_result,'mlogloss')

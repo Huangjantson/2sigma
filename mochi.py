@@ -258,8 +258,8 @@ def getCluster(train_df,test_df,k):
     #processMap(train_test)
     cluster = KMeans(k,random_state = 2333)
     cluster.fit(train_test[['latitude', 'longitude']].dropna())
-    train_df['cluster_id_'+str(k)]=cluster.predict(train_df[['latitude', 'longitude']])
-    test_df['cluster_id_'+str(k)]=cluster.predict(test_df[['latitude', 'longitude']])
+    train_df['cluster_id_'+str(k)]=cluster.predict(train_df[['latitude', 'longitude']].fillna(-1))
+    test_df['cluster_id_'+str(k)]=cluster.predict(test_df[['latitude', 'longitude']].fillna(-1))
     train_df['cluster_id_'+str(k)+'_d']=np.amin(cluster.transform(train_df[['latitude', 'longitude']]),axis=1)
     test_df['cluster_id_'+str(k)+'_d']=np.amin(cluster.transform(test_df[['latitude', 'longitude']]),axis=1)
     
