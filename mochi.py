@@ -254,8 +254,10 @@ def featureMapping(train_df,test_df,feature_list):
 
 #new function for clustering
 def getCluster(train_df,test_df,k):
+    train_test = pd.concat([train_df.drop('interest_level',axis=1),test_df])
+    #processMap(train_test)
     cluster = KMeans(k,random_state = 2333)
-    cluster.fit(train_df[['latitude', 'longitude']].dropna())
+    cluster.fit(train_test[['latitude', 'longitude']].dropna())
     train_df['cluster_id_'+str(k)]=cluster.predict(train_df[['latitude', 'longitude']])
     test_df['cluster_id_'+str(k)]=cluster.predict(test_df[['latitude', 'longitude']])
     train_df['cluster_id_'+str(k)+'_d']=np.amin(cluster.transform(train_df[['latitude', 'longitude']]),axis=1)
@@ -546,7 +548,8 @@ def categorical_statistics(train_df,test_df,cf,nf,\
         statistics['size']='size'
 
         
-    values = pd.concat([train_df,test_df]).groupby(cf)[nf].agg(statistics)
+    values = pd.concat([train_df[[cf,nf]],test_df[[cf,nf]]])\
+               .groupby(cf)[nf].agg(statistics)
     values = values.add_prefix(cf+'_'+nf+'_')
     
     new_feature = list(values.columns)
@@ -604,7 +607,8 @@ def rank_on_categorical(train_df,test_df,cf,nf,mini_size=20,random=None):
 def manager_lon_lat(train_df,test_df):
     
     #adding the features about distance and location
-    temp=pd.concat([train_df,test_df])[['manager_id',"latitude", "longitude"]].dropna()
+    temp=pd.concat([train_df[['manager_id',"latitude", "longitude"]],\
+                     test_df[['manager_id',"latitude", "longitude"]]]).dropna()
     mean_value = temp.groupby('manager_id')[["latitude", "longitude"]].mean().round(4)
     mean_value.columns = ['mlat','mlon']
     std_value = train_df.groupby('manager_id')[["latitude", "longitude"]].std()

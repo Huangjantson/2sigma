@@ -6,19 +6,16 @@
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn import  preprocessing, ensemble
-from sklearn.metrics import log_loss,accuracy_score
+from sklearn import  preprocessing
+from sklearn.metrics import log_loss
 from sklearn.cross_validation import KFold,StratifiedKFold
-import re
-import string
-from collections import defaultdict, Counter
 #import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
 
 
 # In[2]:
 
 from mochi import *
+import pickle
 
 
 # In[3]:
@@ -59,7 +56,7 @@ def runXGB(train_X, train_y, test_X, test_y=None, feature_names=None,      seed_
 # In[4]:
 
 #lodaing data
-data_path = "../../kaggleData/2sigma/"
+data_path = "/home/raku/kaggleData/2sigma/"
 train_file = data_path + "train.json"
 test_file = data_path + "test.json"
 train_df = pd.read_json(train_file)
@@ -132,11 +129,6 @@ train_df['house_type']=map(lambda x,y:(x,y),train_df['bedrooms'],train_df['bathr
 train_df['house_type'] = train_df['house_type'].apply(str)
 
 
-# In[8]:
-
-#filling outliers with nan
-processMap(train_df)
-
 
 # In[9]:
 
@@ -166,17 +158,6 @@ featureMapping(train_df,test_df,accept_list)
 features_to_use.extend(map(lambda x : 'with_'+x,accept_list))
 
 
-# In[11]:
-
-#prepare for validation
-target_num_map = {'high':0, 'medium':1, 'low':2}
-
-train_y = np.array(train_df['interest_level'].apply(lambda x: target_num_map[x]))
-
-KF=StratifiedKFold(train_y,5,shuffle=True,random_state = 2333)
-
-train_df = train_df.fillna(-1)
-#test_df = test_df.fillna(-1)
 
 
 
@@ -222,6 +203,10 @@ features.extend(['manager_id_size','house_type_size'])
 
 features=list(set(features))
 
+processMap(train_df)
+getCluster(train_df,test_df,30)
+getCluster(train_df,test_df,10)
+
 #K-FOLD evaluation for the statistic features
 skf=KFold(len(train_df['interest_level']),5,shuffle=True,random_state = 42)
 #dev set adding manager skill
@@ -256,6 +241,23 @@ for f in categorical:
         lbl.fit(list(train_df[f])+list(test_df[f]))
         train_df[f] = lbl.transform(list(train_df[f].values))
         test_df[f] = lbl.transform(list(test_df[f].values))
+        
+# In[11]:
+
+#prepare for validation
+target_num_map = {'high':0, 'medium':1, 'low':2}
+
+train_y = np.array(train_df['interest_level'].apply(lambda x: target_num_map[x]))
+
+KF=StratifiedKFold(train_y,5,shuffle=True,random_state = 2333)
+
+train_df = train_df.fillna(-1)
+#test_df = test_df.fillna(-1)
+
+store = '/home/raku/kaggleData/2sigma/'
+
+train_df.to_json(store+'xgb1.42-train.json')
+test_df.to_json(store+'xgb1.42-test.json')
 
 # In[17]:
 
@@ -269,9 +271,9 @@ for dev_index, val_index in KF:
     result_dict = {}
     
     dev_set, val_set = train_df.iloc[dev_index,:] , train_df.iloc[val_index,:] 
-    
+    """
     #=============================================================        
-    """feature engineerings for the categorical features"""
+    #feature engineerings for the categorical features
     #fill substitute the small size values by their mean
     for f in ['display_address','manager_id','building_id','street_name']:
         dev_set,val_set  = singleValueConvert(dev_set,val_set,f,1)
@@ -288,17 +290,8 @@ for dev_index, val_index in KF:
             performance_eval(dev_set.iloc[train,:],dev_set.iloc[test,:],feature='manager_id',k=5,g=10,
                            update_df = dev_set,smoothing=False)
             temporalManagerPerf_f(dev_set.iloc[train,:],dev_set.iloc[test,:],update_df = dev_set)
-            """
-            #cv-manner statitstic
-            for f in main_st_nf:
-                #print f
-                categorical_statistics(dev_set.iloc[train,:],dev_set.iloc[test,:],'manager_id',f,update_df=dev_set)
-                categorical_statistics(dev_set.iloc[train,:],dev_set.iloc[test,:],'cluster_id_10',f,update_df=dev_set)
-                categorical_statistics(dev_set.iloc[train,:],dev_set.iloc[test,:],'cluster_id_30',f,update_df=dev_set)
-                #categorical_size(dev_set,val_set,'manager_id')
-            """
-            
-            
+
+
     performance_eval(dev_set,val_set,feature='manager_id',k=5,g=10,smoothing=False)
     temporalManagerPerf_f(dev_set,val_set)
         
@@ -331,24 +324,33 @@ for dev_index, val_index in KF:
     
     #============================================================
     #dev_set.to_csv('having_view.csv',index=False,encoding  = 'utf-8')
-        
+    
+    """
     #filter the features
     dev_X, val_X = dev_set[features].as_matrix(), val_set[features].as_matrix()
     dev_y, val_y = train_y[dev_index], train_y[val_index]
-
+    
+    
     """
     runXGB(dev_X, train_y, val_X, test_y=None, feature_names=None, \
     seed_val=0, early_stop = 20,num_rounds=10000, eta = 0.1, max_depth = 6)
     """        
     
     preds,model = runXGB(dev_X, dev_y, val_X, val_y,feature_names=features,\
-           early_stop = 64,num_rounds=10000,eta = 0.1,max_depth=4,cv_dict = result_dict,verbose_eval=100)
+           early_stop = None,num_rounds=4500,eta = 0.02,max_depth=4,cv_dict = result_dict,verbose_eval=100)
 
     loss = log_loss(val_y, preds)
+    
+    #save the pickles for futures use
+    pickl_file = store+'xgb142-5fold-out'+str(i)+'.pickle'
+    fileObject = open(pickl_file,'wb') 
+    pickle.dump(preds,fileObject)   
+    fileObject.close()
+        
     cv_scores.append(loss)
     cv_result.append(result_dict)
     models.append(model)
-    i++
+    i+=1
     print 'loss for the turn '+str(i)+' is '+str(loss)
 
 
@@ -357,3 +359,8 @@ for dev_index, val_index in KF:
 print 'The mean of the cv_scores (64 turns after best is:'
 print np.mean(cv_scores)
 
+cvResult = CVstatistics(cv_result,'mlogloss')
+
+meanTestError = cvResult.result.filter(like='test').mean(axis=1)
+
+print meanTestError[meanTestError==np.min(meanTestError)]
