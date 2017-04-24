@@ -161,6 +161,7 @@ for dev_index, val_index in KF:
     cv_result.append(result_dict)
     models.append(model)
     i+=1
+    
     print 'loss for the turn '+str(i)+' is '+str(loss)
 
 print 'The mean of the cv_scores is:'

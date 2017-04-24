@@ -369,7 +369,7 @@ def temporalManagerPerf(train_df,test_df,update_df =None,filling=None):
                         performance_d[['mperf_day','mdaytotal']]],axis=1)
 
     if update_df is None: update_df = test_df
-    
+ =    
     new_features = ['m3perf_f','m7perf_f','m14perf_f','m30perf_f','mperf_day',\
                     'm3total_f','m7total_f','m14total_f','m30total_f','mdaytotal']
     
